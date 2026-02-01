@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Super Data Odyssey: Complete Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Nanum+Gothic:wght@400;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap');
+
+        * { box-sizing: border-box; }
+        :root {
+            --mario-red: #e4000f;
+            --mario-yellow: #f8d021;
+            --mario-blue: #049cd8;
+            --navy-dark: #001a33;
+            --navy-light: #003366;
+        }
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; font-family: 'Nanum Gothic', sans-serif; 
+            background: #000; 
+        }
+        canvas { display: block; image-rendering: pixelated; }
+        
+        .scene { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; overflow: hidden; }
+        .scene.active { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+
+        /* === 인트로 스타일 === */
+        #scene-intro {
+            background-color: #222;
+            background-image: url('img/first.webp');
+            background-size: cover; 
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        #bubble-area {
+            position: absolute;
+            top: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 1100px;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .speech-bubble {
+            position: absolute;
+            background: white;
+            border: 0.4vw solid #000;
+            border-radius: 20px;
+            padding: 15px 20px;
+            font-size: clamp(14px, 1.8vw, 24px);
+            font-weight: 800;
+            display: none;
+            z-index: 20;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.4);
+            line-height: 1.4;
+            text-align: center;
+            white-space: nowrap;
+            pointer-events: auto;
+        }
+        #dad-bubble { top: 15%; left: 15%; }
+        #mom-bubble { top: 13%; right: 15%; }
+        #sister-bubble { top: 45%; right: 10%; }
+        #brother-bubble { top: 42%; left: 10%; }
+        #mario-bubble { 
+            top: 65%; left: 50%; 
+            transform: translateX(-50%); 
+            background: #fff176; 
+            border-color: #d32f2f; 
+        }
+        @media (max-width: 768px) {
+            #bubble-area { max-width: 100%; }
+            .speech-bubble {
+                padding: 10px 15px;
+                border-width: 3px;
+                white-space: normal;
+                min-width: 140px;
+            }
+            #dad-bubble { top: 12%; left: 8%; }
+            #mom-bubble { top: 20%; right: 8%; }
+            #mario-bubble { top: 70%; }
+        }
+        .pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .shake { animation: shake 0.1s infinite alternate; }
+        @keyframes shake {
+            0% { transform: translateX(-52%) rotate(-1deg); }
+            100% { transform: translateX(-48%) rotate(1deg); }
+        }
+        @keyframes popIn {
+            0% { transform: scale(0) translateX(-50%); opacity: 0; }
+            100% { transform: scale(1) translateX(-50%); opacity: 1; }
+        }
+        @keyframes popInStatic {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .speech-bubble:not(#mario-bubble).pop-in {
+            animation: popInStatic 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        #start-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center; 
+            z-index: 100;
+            padding: 20px;
+            text-align: center;
+        }
+        #start-btn {
+            padding: 18px 45px; 
+            font-size: clamp(18px, 2.5vw, 36px); 
+            background: #ff4757; color: white;
+            border: 4px solid #fff; border-radius: 50px; 
+            cursor: pointer; font-weight: bold;
+            box-shadow: 0 10px 25px rgba(255, 71, 87, 0.4);
+            transition: all 0.2s;
+        }
+        #start-btn:hover { transform: scale(1.05); background: #ff6b81; }
+        #skip-btn {
+            position: absolute; bottom: 30px; right: 30px;
+            padding: 10px 25px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1.5px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: clamp(12px, 1.2vw, 18px);
+            font-weight: bold;
+            z-index: 50;
+            backdrop-filter: blur(8px);
+            transition: 0.3s;
+            display: none;
+        }
+        #skip-btn:hover { background: #fff; color: #000; }
+
+        /* === 게임 스타일 === */
+        #scene-login { 
+            background-image: url('img/login.jpg');
+            background-size: cover; background-position: center; 
+        }
+        #scene-login.active { justify-content: flex-end; padding-bottom: 5vh; }
+        .login-box {
+            width: 90%; max-width: 480px; 
+            background: linear-gradient(135deg, var(--navy-dark), var(--navy-light));
+            border: 5px solid var(--mario-yellow); border-radius: 24px; padding: 30px 40px;
+            text-align: center; font-family: 'Jua', sans-serif;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.7); position: relative; overflow: hidden; color: white;
+        }
+        .login-box h2 { color: var(--mario-yellow); font-size: 28px; margin-bottom: 20px; text-shadow: 2px 2px 0px rgba(0,0,0,0.5); position: relative; z-index: 10; }
+        .mario-input { 
+            width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #555; border-radius: 12px; 
+            font-size: 18px; outline: none; background: rgba(255,255,255,0.1); color: white; position: relative; z-index: 10;
+        }
+        .mario-btn { 
+            padding: 12px 25px; border-radius: 10px; font-family: 'Jua'; font-size: 20px; 
+            cursor: pointer; border: none; box-shadow: 0 5px 0 rgba(0,0,0,0.3); transition: 0.1s; color: white; position: relative; z-index: 10;
+        }
+        .mario-btn:active { transform: translateY(2px); box-shadow: 0 3px 0 rgba(0,0,0,0.3); }
+        .matrix-column {
+            position: absolute; color: rgba(0, 255, 255, 0.4); font-family: monospace;
+            font-size: 18px; font-weight: bold; pointer-events: none;
+            animation: matrixDrop 4s linear infinite;
+            display: flex; flex-direction: column; line-height: 1;
+        }
+        @keyframes matrixDrop { 0% { transform: translateY(-200px); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(600px); opacity: 0; } }
+
+        /* 게임 모달 */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4); display: flex; justify-content: center; align-items: center;
+            z-index: 100; backdrop-filter: blur(12px);
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.95); width: 550px; height: 950px;
+            border: 8px solid #facc15; border-radius: 40px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            padding: 2.5rem; text-align: center; position: relative;
+        }
+        .cute-success-modal {
+            background: #fff; width: 480px; padding: 3.5rem 2rem; border-radius: 40px;
+            border: 8px solid #fda4af; text-align: center; position: relative;
+            animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        #memoPad {
+            width: 100%; background-color: white;
+            background-image: 
+                linear-gradient(90deg, transparent 49px, #ffb3b3 49px, #ffb3b3 51px, transparent 51px),
+                repeating-linear-gradient(transparent, transparent 31px, #e5e7eb 31px, #e5e7eb 32px);
+            background-size: 100% 100%, 100% 32px;
+            border: 4px solid #e5e7eb; border-radius: 1rem;
+            padding: 10px 15px 10px 65px; text-align: left;
+            font-family: 'Nanum Gothic', sans-serif; font-size: 1.4rem;
+            font-weight: 800; line-height: 32px; color: #333; min-height: 180px;
+            white-space: pre-line; margin: 20px 0; box-shadow: inset 2px 2px 10px rgba(0,0,0,0.05);
+        }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+        .pointer-all { pointer-events: all; }
+        .hidden { display: none !important; }
+        .popup-img { width: 260px; transform: scale(0); opacity: 0; margin-bottom: 10px; }
+        .popup-img.show { animation: popFixed 1.2s cubic-bezier(.2,.8,.2,1) forwards; }
+        @keyframes bounceIn { 0% { transform: scale(0.3); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes popFixed { 0% { transform: scale(0.1); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <!-- [Scene 1] 인트로 -->
+    <section id="scene-intro" class="scene active">
+        <div id="start-overlay">
+            <h1 style="color: white; margin-bottom: 20px; font-size: clamp(24px, 4vw, 56px); letter-spacing: -1px; word-break: keep-all;">데이터 단위란 마리오</h1>
+            <button id="start-btn">이야기 시작하기</button>
+            <p id="status-msg" style="color: #aaa; margin-top: 20px; font-size: clamp(12px, 1.2vw, 18px);">사운드 데이터를 불러오고 있습니다...</p>
+        </div>
+        <button id="skip-btn">Skip >></button>
+        <div id="bubble-area">
+            <div id="dad-bubble" class="speech-bubble">스마트폰 64기가 모델 살까,<br>128기가 살까?</div>
+            <div id="mom-bubble" class="speech-bubble">영화 한 편 다운받으니까<br><span style="color:#d32f2f">2GB</span>래</div>
+            <div id="sister-bubble" class="speech-bubble">사진 한 장이<br><span style="color:#d32f2f">300KB</span>나 돼?</div>
+            <div id="brother-bubble" class="speech-bubble">10초짜리 동영상이<br><span style="color:#d32f2f">5MB</span>래</div>
+            <div id="mario-bubble" class="speech-bubble">기가? 메가? 킬로?<br>대체 뭔 소리야!!</div>
+        </div>
+    </section>
+
+    <!-- [Scene 2] 로그인 -->
+    <section id="scene-login" class="scene">
+        <div class="login-box" id="loginBox">
+            <div id="matrixBg" class="absolute inset-0 pointer-events-none"></div>
+            <h2 class="relative z-10">ADVENTURE LOGIN</h2>
+            <input type="text" id="userId" class="mario-input relative z-10" placeholder="아이디 입력" autocomplete="off">
+            <input type="password" id="userPw" class="mario-input relative z-10" placeholder="비밀번호 입력">
+            <div class="flex items-center gap-2 my-4 text-sm text-gray-300 relative z-10">
+                <input type="checkbox" id="rememberMe" class="w-5 h-5 accent-yellow-400">
+                <span>ID/PW 기억하기</span>
+            </div>
+            <div class="flex gap-4 relative z-10">
+                <button onclick="handleSignUp()" class="mario-btn bg-yellow-400 !text-amber-900 flex-1 font-bold">가입하기</button>
+                <button onclick="handleLogin()" class="mario-btn bg-rose-500 flex-1 font-bold">로그인</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- [Scene 3] 게임 -->
+    <section id="scene-game" class="scene">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-layer">
+            <button onclick="toggleVolume(event); this.blur();" class="absolute top-6 left-6 bg-white/90 p-4 rounded-full shadow-2xl pointer-all hover:scale-110" id="volBtn">🔊</button>
+            <div class="absolute top-6 left-1/2 -translate-x-1/2 w-[550px] h-14 bg-black/40 border-2 border-white/50 rounded-full overflow-hidden backdrop-blur-sm">
+                <div id="dataBar" class="h-full bg-yellow-400 transition-all duration-700 shadow-[0_0_20px_rgba(250,204,21,0.6)]" style="width: 0%"></div>
+                <div id="progressText" class="absolute inset-0 flex items-center justify-center text-white font-black text-lg tracking-widest" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">0 / 8 Bit</div>
+            </div>
+            <div class="absolute top-6 right-6 bg-black/60 text-white p-4 rounded-2xl border border-white/30 backdrop-blur-md">
+                <div id="timerText" class="text-4xl font-bold text-yellow-400 font-mono">40.0</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 모달들 -->
+    <div id="levelIntroModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h1 id="l-title" class="text-5xl font-black mb-8 text-rose-600"></h1>
+            <p id="l-desc" class="text-2xl mb-8 leading-relaxed text-gray-700"></p>
+            <div class="bg-yellow-100 p-10 rounded-[40px] mb-10 border-4 border-yellow-400 w-full flex items-center justify-center">
+                <p id="l-formula" class="text-5xl font-black text-gray-800 leading-tight"></p>
+            </div>
+            <button onclick="startInGame()" class="mario-btn bg-rose-500 !px-12 !py-5 !text-2xl font-bold">미션 시작</button>
+        </div>
+    </div>
+
+    <div id="quizModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="memo">
+                <div class="min-h-[220px] flex items-center justify-center">
+                    <img id="quizPopupImg" class="popup-img" src="" alt="quiz img">
+                </div>
+                <div id="memoPad">
+                    <span id="typedText"></span><span class="animate-pulse">▍</span>
+                </div>
+            </div>
+            <div class="flex flex-col items-center gap-2 mb-8">
+                <p id="q-unit-l" class="text-3xl font-black text-gray-800"></p>
+                <div class="flex items-center gap-4">
+                    <p class="text-4xl font-black text-gray-800">=</p>
+                    <input type="number" id="quizInput" class="w-48 text-center text-6xl border-b-6 border-rose-500 outline-none bg-transparent font-black" placeholder="?">
+                    <p id="q-unit-r" class="text-4xl font-black text-gray-800"></p>
+                </div>
+            </div>
+            <button onclick="checkQuizAnswer()" class="mario-btn bg-rose-500 font-bold">정답 확인</button>
+        </div>
+    </div>
+
+    <div id="finalSuccessModal" class="modal-overlay hidden">
+        <div class="cute-success-modal">
+            <div class="text-8xl mb-8">🎉</div>
+            <h2 id="final-title" class="text-5xl font-black text-rose-500 mb-6">참 잘했어요!</h2>
+            <p id="final-msg" class="text-2xl text-gray-600 mb-12 leading-relaxed"></p>
+            <button onclick="goToNextLevel()" class="mario-btn bg-rose-500 !px-10 font-bold">다음 단계로 이동</button>
+        </div>
+    </div>
+
+    <div id="alertModal" class="modal-overlay hidden" style="z-index: 200;">
+        <div class="bg-white p-10 rounded-[30px] border-4 border-blue-500 text-center max-w-[350px]">
+            <p id="alertMsg" class="text-2xl font-bold mb-6 text-gray-800"></p>
+            <button onclick="closeAlert()" class="mario-btn bg-green-500 !px-10">확인</button>
+        </div>
+    </div>
+
+    <script>
+
+        // === 인트로 관련 ===
+        const introAudio = new Audio("audio/intro.MP3");
+        const startOverlay = document.getElementById('start-overlay');
+        const startBtn = document.getElementById('start-btn');
+        const skipBtn = document.getElementById('skip-btn');
+        const statusMsg = document.getElementById('status-msg');
+        
+        const introBubbles = {
+            dad: document.getElementById('dad-bubble'),
+            mom: document.getElementById('mom-bubble'),
+            sister: document.getElementById('sister-bubble'),
+            brother: document.getElementById('brother-bubble'),
+            mario: document.getElementById('mario-bubble')
+        };
+
+        function goToLogin() {
+            introAudio.pause();
+            introAudio.currentTime = 0;
+            changeScene('scene-login');
+        }
+
+        introAudio.addEventListener('canplaythrough', () => {
+            statusMsg.innerText = "준비가 완료되었습니다!";
+        }, { once: true });
+
+        startBtn.addEventListener('click', () => {
+            introAudio.play().then(() => {
+                startOverlay.style.display = 'none';
+                skipBtn.style.display = 'block';
+            }).catch(err => {
+                console.error('오디오 재생 실패:', err);
+                startOverlay.style.display = 'none';
+                skipBtn.style.display = 'block';
+            });
+        });
+
+        skipBtn.addEventListener('click', goToLogin);
+
+        introAudio.ontimeupdate = () => {
+            const time = introAudio.currentTime;
+            
+            Object.values(introBubbles).forEach(b => {
+                if (b.style.display === 'block') {
+                    b.style.display = 'none';
+                    b.classList.remove('pop-in', 'shake');
+                }
+            });
+
+            if (time > 0.1 && time < 3.8) {
+                showBubble(introBubbles.dad);
+            } else if (time >= 3.8 && time < 7.2) {
+                showBubble(introBubbles.mom);
+            } else if (time >= 7.2 && time < 10.2) {
+                showBubble(introBubbles.sister);
+            } else if (time >= 10.2 && time < 13.0) {
+                showBubble(introBubbles.brother);
+            } else if (time >= 13.0) {
+                showBubble(introBubbles.mario, true); 
+            }
+        };
+
+        function showBubble(el, shouldShake = false) {
+            if (el.style.display !== 'block') {
+                el.style.display = 'block';
+                el.classList.add('pop-in');
+                if (shouldShake) el.classList.add('shake');
+            }
+        }
+
+        introAudio.onended = goToLogin;
+
+        // === 게임 관련 ===
+    
+        const STAGE_CONFIG = {
+            1: { title: "8-Bit Mission", desc: "1 Byte(바이트)를 완성하려면\n8개의 Bit(비트) 조각이 모여야 해요.", formula: "1 Byte = 8 Bit", target: 8, unit: "Bit", itemSrc: "img/BIT.png", quizImg: "img/A.png", quizText: "1 Byte\n알파벳 한 글자를 저장할 수 있는 크기", quizAnswer: "8", unitL: "1 Byte", unitR: "Bit", successMsg: "비트 8개를 모아 1 Byte를 만들었습니다!", narr: "audio/1byte.wav" },
+            2: { title: "Byte Quest", desc: "1KB(킬로바이트)를 완성하려면\n1024 Byte(바이트)가 모여야 해요.", formula: "1KB = 1024 Byte", target: 1024, unit: "Byte", itemTypes: [{ src: "img/1BYTE.png", val: 1, size: 120 }, { src: "img/10BYTE.png", val: 10, size: 144 }, { src: "img/1000BYTE.png", val: 1000, size: 182 }], quizImg: "", quizText: "대단해!\n내가 쓴 메모지 분량이\n약 1KB정도야.", quizAnswer: "1024", unitL: "1KB", unitR: "Byte", successMsg: "1024 Byte를 모아 1 KB를 정복했습니다!", narr: "audio/1kb.wav" },
+            3: { title: "MB Mission", desc: "1MB(메가바이트)를 완성하려면\n1024KB(킬로바이트)가 모여야 해요.", formula: "1MB = 1024 KB", target: 1024, unit: "KB", itemTypes: [{ src: "img/1KB.png", val: 1, size: 160 }, { src: "img/10KB.png", val: 10, size: 220 }, { src: "img/1000KB.png", val: 1000, size: 150 }], quizImg: "img/위너액자.png", quizText: "1MB면 이런 사진 한 장을\n선명하게 담을 수 있답니다.", quizAnswer: "1024", unitL: "1MB", unitR: "KB", successMsg: "1024 KB를 모아 1 MB를 완성했습니다!", narr: "audio/1mb.wav" },
+            4: { title: "GB Mission", desc: "1GB(기가바이트)를 완성하려면\n1024MB(메가바이트)가 모여야 해요.", formula: "1GB = 1024 MB", target: 1024, unit: "MB", itemTypes: [{ src: "img/1MB.png", val: 1, size: 120 }, { src: "img/10MB.png", val: 10, size: 144 }, { src: "img/1000MB.png", val: 1000, size: 182 }], quizImg: "img/0131.gif", quizText: "1GB는 짧은 동영상도\n거뜬히 저장할 수 있는 큰 단위예요.", quizAnswer: "1024", unitL: "1GB", unitR: "MB", successMsg: "축하합니다! 기가바이트(GB)까지\n데이터의 여정을 완주하셨습니다!", narr: "audio/finale.wav", isFinal: true }
+        };
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const TARGET_WIDTH = 1920, TARGET_HEIGHT = 1080;
+        let scale = 1, currentStage = 1, gameActive = false, isMuted = false, gameScore = 0, timeLeft = 40, lastTime = 0, bgmStarted = false;
+
+        const img = { bg: new Image(), brick: new Image(), v: new Image(), mario: [], mob: [] };
+        const sfx = { 
+            bgm: new Audio("audio/mario.mp3"), 
+            coin: new Audio("audio/coin.MP3"), 
+            jump: new Audio("audio/mariojump.MP3"), 
+            stomp: new Audio("audio/woosh.mp3"), 
+            over: new Audio("audio/timeover.wav") 
+        };
+
+        const platforms = [], items = [], enemies = [], particles = [], keys = {};
+        let bubbles = {};
+
+        function loadBaseAssets() {
+            img.bg.src = "img/gamebg.webp";
+            img.brick.src = "img/brick.webp";
+            img.v.src = "img/v.png";
+            for(let i=1; i<=4; i++) { let m = new Image(); m.src = `img/r (${i}).png`; img.mario.push(m); }
+            for(let i=1; i<=3; i++) { let m = new Image(); m.src = `img/M${i}.png`; img.mob.push(m); }
+            sfx.bgm.loop = true;
+        }
+
+        /* --- ⚠️ 디지털 비 효과 (줄지어 내려오는 랜덤 수) --- */
+        function initMatrixEffect() {
+            const matrixBg = document.getElementById('matrixBg'); matrixBg.innerHTML = '';
+            // 12개의 컬럼 생성
+            for(let i=0; i<12; i++) {
+                const col = document.createElement('div');
+                col.className = 'matrix-column';
+                col.style.left = (Math.random() * 95) + '%';
+                col.style.animationDuration = (Math.random() * 2 + 2.5) + 's';
+                col.style.animationDelay = (Math.random() * 2) + 's';
+                
+                // 각 컬럼에 6~10개의 랜덤 숫자 채우기
+                const len = Math.floor(Math.random() * 5) + 6;
+                for(let j=0; j<len; j++) {
+                    const span = document.createElement('div');
+                    span.innerText = Math.random() > 0.5 ? '1' : '0';
+                    col.appendChild(span);
+                }
+                matrixBg.appendChild(col);
+            }
+            // 0.2초마다 컬럼 내 숫자들 랜덤 변경
+            setInterval(() => {
+                document.querySelectorAll('.matrix-column').forEach(col => {
+                    col.childNodes.forEach(node => { node.innerText = Math.random() > 0.5 ? '1' : '0'; });
+                });
+            }, 200);
+        }
+
+        function changeScene(id) {
+            document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'scene-login') initMatrixEffect();
+            if(id === 'scene-game') initGameStage();
+        }
+
+        
+
+        function handleSignUp() {
+            const id = document.getElementById('userId').value.trim(), pw = document.getElementById('userPw').value.trim();
+            if(!id || !pw) return showAlert("ID와 PW를 입력하세요!");
+            if(localStorage.getItem('user_'+id)) return showAlert("이미 가입된 아이디입니다.");
+            localStorage.setItem('user_'+id, JSON.stringify({id, pw})); showAlert("가입 완료! 로그인 해주세요.");
+        }
+        function handleLogin() {
+            const id = document.getElementById('userId').value.trim(), pw = document.getElementById('userPw').value.trim();
+            const data = localStorage.getItem('user_'+id);
+            if(data && JSON.parse(data).pw === pw) {
+                if(document.getElementById('rememberMe').checked) { localStorage.setItem('mario_rem_id', id); localStorage.setItem('mario_rem_pw', pw); }
+                else { localStorage.removeItem('mario_rem_id'); localStorage.removeItem('mario_rem_pw'); }
+                changeScene('scene-game');
+            } else showAlert("정보가 확인되지 않습니다.");
+        }
+        function showAlert(msg) { document.getElementById('alertMsg').innerText = msg; document.getElementById('alertModal').classList.remove('hidden'); }
+        function closeAlert() { document.getElementById('alertModal').classList.add('hidden'); }
+
+        function initGameStage() {
+            const conf = STAGE_CONFIG[currentStage];
+            document.getElementById('l-title').innerText = conf.title;
+            document.getElementById('l-desc').innerText = conf.desc;
+            document.getElementById('l-formula').innerText = conf.formula;
+            document.getElementById('progressText').innerText = `0 / ${conf.target} ${conf.unit}`;
+            document.getElementById('levelIntroModal').classList.remove('hidden');
+            gameScore = 0; timeLeft = 40; gameActive = false;
+            platforms.length = items.length = enemies.length = particles.length = 0;
+            document.getElementById('dataBar').style.width = '0%';
+
+            if(currentStage === 1) {
+                // ⚠️ 모든 플랫폼 좌표 추가 30px 하향 조정 (기존 590->620, 570->600)
+                platforms.push({x: 400, y: 620, w: 360, h: 120}, {x: 950, y: 600, w: 360, h: 120});
+                const locs = [[150, 800], [500, 430], [900, 800], [1100, 330], [1400, 800], [1700, 400], [600, 200], [1300, 150]];
+                locs.forEach(l => items.push(new Item(l[0], l[1], 1, conf.itemSrc, 120)));
+                enemies.push(new Enemy(1600));
+            } else {
+                // ⚠️ 모든 플랫폼 좌표 추가 30px 하향 조정 (기존 540->570, 800->830)
+                platforms.push(new MovingPlatform(400, 570, 3), new MovingPlatform(950, 830, 3));
+                const scatter = [[150, 100, 1000], [1600, 120, 10], [850, 720, 10], [100, 850, 1], [650, 250, 1], [1200, 450, 1], [1500, 800, 1]];
+                scatter.forEach(p => {
+                    const type = conf.itemTypes.find(t => t.val === p[2]) || conf.itemTypes[0];
+                    items.push(new Item(p[0], p[1], p[2], type.src, type.size));
+                });
+                enemies.push(new Enemy(1500));
+            }
+            player.reset(); resize();
+        }
+
+        function startInGame() { document.getElementById('levelIntroModal').classList.add('hidden'); gameActive = true; if(!bgmStarted) { sfx.bgm.play().catch(()=>{}); bgmStarted = true; } lastTime = performance.now(); requestAnimationFrame(gameLoop); }
+
+        const player = {
+            w: 300, h: 300, x: 100, y: 0, footOffset: 35, vx: 0, vy: 0, isJumping: false, frame: 0, frameTime: 0, dir: 1, isSuccess: false, successTimer: 0, heartbeatCount: 0, startX: 0, startY: 0, currentPlatform: null, invincible: 0,
+            reset() { this.x = 100; this.y = TARGET_HEIGHT - 120 - this.h; this.isSuccess = false; this.successTimer = 0; this.heartbeatCount = 0; this.vy = 0; this.isJumping = false; this.invincible = 0; },
+            update(dt) {
+                if(this.isSuccess) { this.successTimer += dt; this.heartbeatCount = (this.successTimer * 10) / (Math.PI * 2); return; }
+                if(this.invincible > 0) this.invincible -= dt;
+                if(keys['ArrowRight']) { this.vx = 4.5; this.dir = 1; } else if(keys['ArrowLeft']) { this.vx = -4.5; this.dir = -1; } else this.vx = 0;
+                const groundLimit = TARGET_HEIGHT - 122; const onFloor = (this.y + this.h - this.footOffset >= groundLimit);
+                
+                // ⚠️ 수정: 점프 능력 5px 상향 (-25 -> -30)
+                if(keys[' '] && (onFloor || this.currentPlatform) && !this.isJumping) { this.vy = -28; this.isJumping = true; playSound(sfx.jump); this.currentPlatform = null; keys[' '] = false; }
+                
+                this.vy += 1.0; this.x += this.vx; this.y += this.vy;
+                if(this.currentPlatform && this.currentPlatform.vx) this.x += this.currentPlatform.vx * this.currentPlatform.dir * dt;
+                if(this.y + this.h - this.footOffset >= TARGET_HEIGHT - 120) { this.y = TARGET_HEIGHT - 120 - (this.h - this.footOffset); this.vy = 0; this.isJumping = false; this.currentPlatform = null; }
+                let onP = false;
+                platforms.forEach(p => {
+                    if(this.vy >= 0 && this.x + this.w*0.7 > p.x && this.x + this.w*0.3 < p.x + p.w && this.y + this.h - this.footOffset >= p.y - 10 && this.y + this.h - this.footOffset <= p.y + 15) {
+                        this.y = p.y - (this.h - this.footOffset); this.vy = 0; this.isJumping = false; this.currentPlatform = p; onP = true;
+                    }
+                });
+                if(!onP && !onFloor) this.currentPlatform = null;
+                if(this.x < 0) this.x = 0; if(this.x + this.w > TARGET_WIDTH) this.x = TARGET_WIDTH - this.w;
+                if(this.vx !== 0) { this.frameTime += dt; if(this.frameTime > 0.1) { this.frame = (this.frame+1)%4; this.frameTime = 0; } } else this.frame = 0;
+            }
+        };
+
+        class MovingPlatform {
+            constructor(x, y, wCount) { this.x = x; this.y = y; this.w = wCount * 120; this.h = 120; this.vx = 200; this.dir = 1; this.minX = 200; this.maxX = 1600; }
+            update(dt) { this.x += this.vx * this.dir * dt; if(this.x < this.minX || this.x + this.w > this.maxX) this.dir *= -1; }
+            draw() { if(!img.brick.complete) return; for(let i=0; i<this.w/120; i++) ctx.drawImage(img.brick, Math.floor(this.x + i*120), this.y, 121, 120); }
+        }
+
+        class Enemy {
+            constructor(x) { this.x = x; this.y = TARGET_HEIGHT - 120 - 150; this.w = 150; this.h = 150; this.vx = -1.2; this.deadState = 0; this.frame = 0; this.frameTime = 0; this.isRemoved = false; }
+            update(dt) {
+                if(this.deadState === 0) {
+                    this.frameTime += dt; if(this.frameTime > 0.2) { this.frame = 1 - this.frame; this.frameTime = 0; }
+                    this.x += this.vx; if(this.x < 100 || this.x > 1800) this.vx *= -1;
+                    if(checkCollision(player, this)) {
+                        if(player.vy > 0 && player.y + player.h - player.footOffset < this.y + this.h*0.6) { this.deadState = 1; timeLeft += 10; playSound(sfx.stomp); player.vy = -20; }
+                        else if(player.invincible <= 0) { timeLeft = Math.max(0, timeLeft - 10); player.invincible = 1.5; player.x -= (player.dir * 120); player.vy = -12; }
+                    }
+                } else if(this.deadState === 1) {
+                    if(checkCollision(player, this)) { this.deadState = 2; playSound(sfx.stomp); }
+                } else { this.frame = 2; this.x -= 60; if(this.x < -300) this.isRemoved = true; }
+            }
+            draw() { if(!this.isRemoved) { let f = (this.deadState >= 1) ? 2 : this.frame; ctx.drawImage(img.mob[f], this.x, this.y, this.w, this.h); } }
+        }
+
+        class Item {
+            constructor(x, y, val, src, size = 120) { this.x = x; this.y = y; this.w = size; this.h = size; this.val = val; this.img = new Image(); this.img.src = src; this.collected = false; }
+            draw() { if(!this.collected && this.img.complete) { ctx.drawImage(this.img, this.x, this.y, this.w, this.h); ctx.fillStyle = "white"; ctx.font = "bold 22px Arial"; ctx.textAlign = "center"; ctx.fillText(this.val + STAGE_CONFIG[currentStage].unit, this.x+this.w/2, this.y-10); } }
+        }
+
+        function gameLoop(time) { if(!gameActive) return; const dt = Math.min(0.1, (time - lastTime) / 1000); lastTime = time; update(dt); render(); requestAnimationFrame(gameLoop); }
+
+        function update(dt) {
+            if(player.isSuccess) {
+                player.update(dt); if(player.heartbeatCount >= 8 && !document.getElementById('quizModal').classList.contains('active')) showQuizModal();
+                updateParticles(dt); return;
+            }
+            timeLeft -= dt; if(timeLeft <= 0) { timeLeft = 0; playSound(sfx.over); initGameStage(); return; }
+            document.getElementById('timerText').innerText = timeLeft.toFixed(1);
+            player.update(dt); platforms.forEach(p => { if(p.update) p.update(dt); });
+            for(let i=enemies.length-1; i>=0; i--) { enemies[i].update(dt); if(enemies[i].isRemoved) enemies.splice(i, 1); }
+            items.forEach(it => { if(!it.collected && checkCollision(player, it)) { it.collected = true; gameScore += it.val; playSound(sfx.coin); const target = STAGE_CONFIG[currentStage].target; document.getElementById('dataBar').style.width = Math.min(100, (gameScore/target*100)) + '%'; document.getElementById('progressText').innerText = `${Math.min(target, gameScore)} / ${target} ${STAGE_CONFIG[currentStage].unit}`; if(gameScore >= target) triggerSuccess(); } });
+        }
+
+        function triggerSuccess() { player.isSuccess = true; player.startX = player.x; player.startY = player.y; sfx.bgm.volume = 0.1; const narr = new Audio(STAGE_CONFIG[currentStage].narr); narr.play().catch(()=>{}); narr.onended = () => { if(currentStage < 4) sfx.bgm.volume = 1.0; }; createConfetti(); }
+
+        function showQuizModal() {
+            const conf = STAGE_CONFIG[currentStage]; const modal = document.getElementById('quizModal'); modal.classList.remove('hidden'); modal.classList.add('active');
+            const pImg = document.getElementById('quizPopupImg'); if(conf.quizImg) { pImg.src = conf.quizImg; pImg.classList.remove('hidden'); pImg.classList.add('show'); } else { pImg.classList.add('hidden'); pImg.classList.remove('show'); }
+            document.getElementById('q-unit-l').innerText = conf.unitL; document.getElementById('q-unit-r').innerText = conf.unitR;
+            document.getElementById('quizInput').value = ''; typeMemo(conf.quizText);
+        }
+
+        function typeMemo(text) { const target = document.getElementById('typedText'); target.innerText = ''; let i = 0; const itv = setInterval(() => { target.innerText += text[i]; i++; if(i >= text.length) clearInterval(itv); }, 70); }
+
+        function checkQuizAnswer() { const ans = document.getElementById('quizInput').value; if(ans == STAGE_CONFIG[currentStage].quizAnswer) { document.getElementById('quizModal').classList.add('hidden'); document.getElementById('final-msg').innerText = STAGE_CONFIG[currentStage].successMsg; document.getElementById('finalSuccessModal').classList.remove('hidden'); } else showAlert("다시 생각해보세요!"); }
+
+        function goToNextLevel() { document.getElementById('finalSuccessModal').classList.add('hidden'); document.getElementById('quizModal').classList.remove('active'); if(STAGE_CONFIG[currentStage].isFinal) location.reload(); else { currentStage++; initGameStage(); } }
+
+        function render() {
+            ctx.clearRect(0, 0, TARGET_WIDTH, TARGET_HEIGHT);
+            if(img.bg.complete) ctx.drawImage(img.bg, 0, 0, TARGET_WIDTH, TARGET_HEIGHT);
+            platforms.forEach(p => { if(p.draw) p.draw(); else ctx.drawImage(img.brick, p.x, p.y, p.w, p.h); });
+            items.forEach(it => it.draw()); enemies.forEach(e => e.draw());
+            particles.forEach(p => { if(p.life > 0) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation); ctx.fillStyle = p.color; ctx.globalAlpha = Math.min(1, p.life); ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); ctx.restore(); } });
+            ctx.save(); if(player.invincible > 0 && Math.floor(Date.now() / 100) % 2 === 0) ctx.globalAlpha = 0.3;
+            if(player.isSuccess) {
+                const prog = Math.min(1, player.successTimer / 1.5);
+                const drawX = player.startX + (TARGET_WIDTH/2 - (player.startX + player.w/2)) * prog;
+                const drawY = player.startY + (TARGET_HEIGHT/2 - (player.startY + player.h/2)) * prog;
+                let hb = (player.heartbeatCount < 8) ? 1 + Math.sin(player.successTimer * 10) * 0.15 : 1.15;
+                let sVal = 1 + (player.successTimer * 0.5); if(player.heartbeatCount >= 8) sVal = 3.5;
+                ctx.translate(drawX + player.w/2, drawY + player.h/2); ctx.scale(sVal * hb, sVal * hb);
+                ctx.drawImage(img.v, -player.w/2, -player.h/2, player.w, player.h);
+            } else {
+                if(player.dir === -1) { ctx.translate(player.x+player.w, player.y); ctx.scale(-1, 1); ctx.drawImage(img.mario[player.frame], 0, 0, player.w, player.h); }
+                else ctx.drawImage(img.mario[player.frame], player.x, player.y, player.w, player.h);
+            }
+            ctx.restore();
+        }
+
+        function checkCollision(a, b) { const buf = 45; return a.x+buf < b.x+b.w-buf && a.x+a.w-buf > b.x+buf && a.y+buf < b.y+b.h-buf && a.y+a.h-buf > b.y+buf; }
+        function playSound(a) { if(!isMuted && a) { a.currentTime = 0; a.play().catch(()=>{}); } }
+        function toggleVolume(e) { isMuted = !isMuted; sfx.bgm.muted = isMuted; document.getElementById('volBtn').innerText = isMuted ? '🔇' : '🔊'; }
+        
+        function resize() {
+            const w = window.innerWidth, h = window.innerHeight;
+            scale = (w/h > TARGET_WIDTH/TARGET_HEIGHT) ? h/TARGET_HEIGHT : w/TARGET_WIDTH;
+            canvas.width = TARGET_WIDTH * scale; canvas.height = TARGET_HEIGHT * scale;
+            ctx.setTransform(scale, 0, 0, scale, 0, 0);
+            const wrapper = document.getElementById('bubble-wrapper');
+            if(wrapper) { wrapper.style.transform = `translate(-50%, -50%) scale(${scale})`; }
+        }
+        
+        function createConfetti() { const colors = ['#facc15', '#e11d48', '#22c55e', '#3b82f6', '#a855f7']; for(let i=0; i<300; i++) { particles.push({ x: TARGET_WIDTH/2, y: -50, vx: (Math.random()-0.5)*80, vy: Math.random()*20+10, color: colors[Math.floor(Math.random()*5)], size: Math.random()*20+10, life: 10, gravity: 0.15, friction: 0.98, rotation: Math.random()*Math.PI*2, spin: (Math.random()-0.5)*0.2 }); } }
+        function updateParticles(dt) { particles.forEach(p => { p.vx *= p.friction; p.vy *= p.friction; p.vy += p.gravity; p.x += p.vx; p.y += p.vy; p.rotation += p.spin; p.life -= 0.003; }); }
+
+        window.addEventListener('keydown', e => { keys[e.key] = true; if(e.key === ' ' && document.activeElement.tagName !== 'INPUT') e.preventDefault(); });
+        window.addEventListener('keyup', e => keys[e.key] = false);
+        window.addEventListener('resize', resize);
+        
+        window.onload = () => {
+            
+            const id = localStorage.getItem('mario_rem_id'), pw = localStorage.getItem('mario_rem_pw');
+            if(id && pw) { document.getElementById('userId').value = id; document.getElementById('userPw').value = pw; document.getElementById('rememberMe').checked = true; }
+            loadBaseAssets(); resize();
+        };
+    
+    </script>
+</body>
+</html>
